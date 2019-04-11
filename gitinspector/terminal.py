@@ -100,7 +100,7 @@ def get_size():
 			(width, height) = __get_size_windows__()
 		elif current_os == "Linux" or current_os == "Darwin" or  current_os.startswith("CYGWIN"):
 			(width, height) = __get_size_linux__()
-
+	import ipdb; ipdb.set_trace()
 	if width > 0:
 		return (width, height)
 

@@ -67,11 +67,12 @@ class FileDiff(object):
 		return False
 
 class Commit(object):
-	def __init__(self, string):
+	def __init__(self, string, repo):
 		self.filediffs = []
 		commit_line = string.split("|")
 
 		if commit_line.__len__() == 5:
+			self.repo = repo.name
 			self.timestamp = commit_line[0]
 			self.date = commit_line[1]
 			self.sha = commit_line[2]
@@ -152,7 +153,7 @@ class ChangesThread(threading.Thread):
 
 				found_valid_extension = False
 				is_filtered = False
-				commit = Commit(j)
+				commit = Commit(j, self.changes.repo)
 
 				if Commit.is_commit_line(j) and \
 				   (filtering.set_filtered(commit.author, "author") or \
@@ -184,6 +185,7 @@ class Changes(object):
 
 	def __init__(self, repo, hard):
 		self.commits = []
+		self.repo = repo
 		interval.set_ref("HEAD");
 		git_rev_list_p = subprocess.Popen(filter(None, ["git", "rev-list", "--reverse", "--no-merges",
 		                                  interval.get_since(), interval.get_until(), "HEAD"]), bufsize=1,

@@ -20,7 +20,9 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 import atexit
+import logging
 import getopt
+import csv
 import os
 import sys
 from .blame import Blame
@@ -40,6 +42,14 @@ from .output.timelineoutput import TimelineOutput
 
 localization.init()
 
+logger = logging.getLogger('logger')
+console = logging.StreamHandler()
+console.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(message)s')
+console.setFormatter(formatter)
+logger.addHandler(console)
+
+
 class Runner(object):
 	def __init__(self):
 		self.hard = False
@@ -52,6 +62,7 @@ class Runner(object):
 		self.useweeks = False
 
 	def process(self, repos):
+
 		localization.check_compatibility(version.__version__)
 
 		if not self.localize_output:
@@ -65,8 +76,9 @@ class Runner(object):
 		summed_metrics = MetricsLogic.__new__(MetricsLogic)
 
 		for repo in repos:
+			logger.error('Processing {}'.format(repo.name))
 			os.chdir(repo.location)
-			repo = repo if len(repos) > 1 else None
+			repo = repo if len(repos) >= 1 else None
 			changes = Changes(repo, self.hard)
 			summed_blames += Blame(repo, self.hard, self.useweeks, changes)
 			summed_changes += changes
@@ -83,6 +95,21 @@ class Runner(object):
 		outputable.output(ChangesOutput(summed_changes))
 
 		if summed_changes.get_commits():
+
+			for commit in summed_changes.get_commits():
+				for diff in commit.filediffs:
+					# import ipdb; ipdb.set_trace()
+					write_commit_info_to_csv(
+						sha=commit.sha.encode('utf-8'),
+						repo=commit.repo.encode('utf-8'),
+						author=commit.author.encode('utf-8'),
+                        author_email=commit.email.encode('utf-8'),
+						date=commit.date.encode('utf-8'),
+						name=diff.name.encode('utf-8'),
+						extension=diff.get_extension(diff.name).encode('utf-8'),
+						deletions=-diff.deletions,
+						insertions=diff.insertions,
+					)
 			outputable.output(BlameOutput(summed_changes, summed_blames))
 
 			if self.timeline:
@@ -101,6 +128,35 @@ class Runner(object):
 
 		format.output_footer()
 		os.chdir(previous_directory)
+
+# encoding=utf8
+import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
+
+def write_commit_info_to_csv(**kwargs):
+    print('commit: {} - [@{}] {} {} {}: {} {} -> (+{}) (-{}) '.format(
+        kwargs['sha'],
+        kwargs['repo'],
+        kwargs['author'],
+        kwargs['author_email'],
+        kwargs['date'],
+        kwargs['name'],
+        kwargs['extension'],
+        kwargs['deletions'],
+        kwargs['insertions'],
+    ))
+    commit_year, commit_month, commit_day = kwargs['date'].split('-')
+    with open(
+        'commit_info_{}_{}_{}.csv'.format(kwargs['repo'], commit_year, commit_month),
+        mode='a',
+    ) as csv_file:
+        fieldnames = ['sha', 'repo', 'author', 'author_email', 'date', 'name', 'extension', 'deletions', 'insertions']
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+
+        # writer.writeheader()
+        writer.writerow(kwargs)
+
 
 def __check_python_version__():
 	if sys.version_info < (2, 6):
