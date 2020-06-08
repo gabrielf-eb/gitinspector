@@ -22,7 +22,6 @@ from __future__ import unicode_literals
 import atexit
 import logging
 import getopt
-import csv
 import os
 import sys
 from .blame import Blame
@@ -93,23 +92,35 @@ class Runner(object):
 
 		format.output_header(repos)
 		outputable.output(ChangesOutput(summed_changes))
-
+		inserts = []
 		if summed_changes.get_commits():
 
 			for commit in summed_changes.get_commits():
 				for diff in commit.filediffs:
-					# import ipdb; ipdb.set_trace()
-					write_commit_info_to_csv(
-						sha=commit.sha.encode('utf-8'),
-						repo=commit.repo.encode('utf-8'),
-						author=commit.author.encode('utf-8'),
-                        author_email=commit.email.encode('utf-8'),
-						date=commit.date.encode('utf-8'),
-						name=diff.name.encode('utf-8'),
-						extension=diff.get_extension(diff.name).encode('utf-8'),
-						deletions=-diff.deletions,
-						insertions=diff.insertions,
+					inserts.append(
+						write_commit_info_to_sql(
+							sha=commit.sha,
+							repo=commit.repo,
+							author=commit.author,
+	                        author_email=commit.email,
+							date=commit.date,
+							name=diff.name,
+							extension=diff.get_extension(diff.name),
+							deletions=-diff.deletions,
+							insertions=diff.insertions,
+						)
 					)
+					# write_commit_info_to_sql(
+					# 	sha=commit.sha.encode('utf-8'),
+					# 	repo=commit.repo.encode('utf-8'),
+					# 	author=commit.author.encode('utf-8'),
+     #                    author_email=commit.email.encode('utf-8'),
+					# 	date=commit.date.encode('utf-8'),
+					# 	name=diff.name.encode('utf-8'),
+					# 	extension=diff.get_extension(diff.name).encode('utf-8'),
+					# 	deletions=-diff.deletions,
+					# 	insertions=diff.insertions,
+					# )
 			outputable.output(BlameOutput(summed_changes, summed_blames))
 
 			if self.timeline:
@@ -128,34 +139,40 @@ class Runner(object):
 
 		format.output_footer()
 		os.chdir(previous_directory)
+		return inserts
 
 # encoding=utf8
 import sys
-reload(sys)
-sys.setdefaultencoding('utf8')
+# reload(sys)
+# sys.setdefaultencoding('utf8')
 
-def write_commit_info_to_csv(**kwargs):
-    print('commit: {} - [@{}] {} {} {}: {} {} -> (+{}) (-{}) '.format(
-        kwargs['sha'],
-        kwargs['repo'],
-        kwargs['author'],
-        kwargs['author_email'],
-        kwargs['date'],
-        kwargs['name'],
-        kwargs['extension'],
-        kwargs['deletions'],
-        kwargs['insertions'],
-    ))
-    commit_year, commit_month, commit_day = kwargs['date'].split('-')
-    with open(
-        'commit_info_{}_{}_{}.csv'.format(kwargs['repo'], commit_year, commit_month),
-        mode='a',
-    ) as csv_file:
-        fieldnames = ['sha', 'repo', 'author', 'author_email', 'date', 'name', 'extension', 'deletions', 'insertions']
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-
-        # writer.writeheader()
-        writer.writerow(kwargs)
+def write_commit_info_to_sql(**kwargs):
+    commit_date = kwargs['date']
+    commit_year, commit_month, commit_day = commit_date.split('-')
+    filename = 'output/commit_info_{}.sql'.format(
+        commit_year,
+    )
+    sql = (
+        "("
+        "'{sha}', "
+        "'{repo}', "
+        "'{author}', "
+        "'{author_email}', "
+        "'{date}', "
+        "'{name}', "
+        "'{extension}', "
+        "{deletions}, "
+        "{insertions}"
+        ") "
+    )
+    # with open(
+    #     filename,
+    #     mode='a',
+    # ) as sql_file:
+    #     # "INSERT INTO hive.team_comms_eng.eb_commits values "
+    #     sql_file.write(sql.format(**kwargs) + os.linesep)
+    return sql.format(**kwargs)
+    # + os.linesep
 
 
 def __check_python_version__():
@@ -181,6 +198,20 @@ def __get_validated_git_repos__(repos_relative):
 
 	return repos
 
+
+def execute(repository, since, until):
+    run = Runner()
+    run.responsibilities = True
+    run.timeline = True
+    run.useweeks = True
+    interval.set_since(since)
+    interval.set_until(until)
+    repos = __get_validated_git_repos__({repository})
+    GitConfig(run, repos[-1].location).read()
+    format.select('html')
+    return run.process(repos)
+
+
 def main():
 	terminal.check_terminal_encoding()
 	terminal.set_stdin_encoding()
@@ -193,6 +224,7 @@ def main():
 		                                         "hard:true", "help", "list-file-types:true", "localize-output:true",
 		                                         "metrics:true", "responsibilities:true", "since=", "grading:true",
 		                                         "timeline:true", "until=", "version", "weeks:true"])
+		import ipdb; ipdb.set_trace()
 		repos = __get_validated_git_repos__(set(args))
 
 		#We need the repos above to be set before we read the git config.

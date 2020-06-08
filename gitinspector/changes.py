@@ -59,6 +59,7 @@ class FileDiff(object):
 
 	@staticmethod
 	def is_valid_extension(string):
+		return True
 		extension = FileDiff.get_extension(string)
 
 		for i in extensions.get():
@@ -190,9 +191,11 @@ class Changes(object):
 		git_rev_list_p = subprocess.Popen(filter(None, ["git", "rev-list", "--reverse", "--no-merges",
 		                                  interval.get_since(), interval.get_until(), "HEAD"]), bufsize=1,
 		                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		print (' '.join(["git", "rev-list", "--reverse", "--no-merges",
+		                                  interval.get_since(), interval.get_until(), "HEAD"]))
 		lines = git_rev_list_p.communicate()[0].splitlines()
 		git_rev_list_p.stdout.close()
-
+		# import ipdb; ipdb.set_trace()
 		if git_rev_list_p.returncode == 0 and len(lines) > 0:
 			progress_text = _(PROGRESS_TEXT)
 			if repo != None:

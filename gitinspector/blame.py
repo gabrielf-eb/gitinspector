@@ -84,7 +84,7 @@ class BlameThread(threading.Thread):
 			self.blames[(author, self.filename)].comments += comments
 			self.blames[(author, self.filename)].rows += 1
 
-			if (self.blamechunk_time - self.changes.first_commit_date).days > 0:
+			if hasattr(self.changes, 'first_commit_date') and (self.blamechunk_time - self.changes.first_commit_date).days > 0:
 				self.blames[(author, self.filename)].skew += ((self.changes.last_commit_date - self.blamechunk_time).days /
 				                                             (7.0 if self.useweeks else AVG_DAYS_PER_MONTH))
 
